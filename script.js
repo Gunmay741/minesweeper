@@ -5,11 +5,17 @@ let totalMines;
 let difficulty = "easy";
 let gameStarted = false;
 let gameOverState = false;
+let startTime;
+let timerRunning = false;
+let elapsedTime = 0;
+let flagLimit;
+let remainingFlags;
+
 
 let buttonEasy, buttonMedium, buttonHard;
 
 function setup() {
-  createCanvas(600, 600);
+  createCanvas(800, 800);
   showStartScreen();
 }
 
@@ -39,31 +45,41 @@ function keyPressed() {
 }
 
 function startGame(mode) {
-  difficulty = mode;
-  if (mode === "easy") {
-    cols = 10;
-    rows = 10;
-    totalMines = 10;
-  } else if (mode === "medium") {
-    cols = 15;
-    rows = 15;
-    totalMines = 20;
-  } else if (mode === "hard") {
-    cols = 20;
-    rows = 20;
-    totalMines = 45;
+    difficulty = mode;
+    if (mode === "easy") {
+        cols = 10;
+        rows = 10;
+        totalMines = 10;
+        flagLimit = 10;
+      } else if (mode === "medium") {
+        cols = 15;
+        rows = 15;
+        totalMines = 20;
+        flagLimit = 20;
+      } else if (mode === "hard") {
+        cols = 20;
+        rows = 20;
+        totalMines = 45;
+        flagLimit = 45;
+      }
+      remainingFlags = flagLimit;
+      
+  
+    resizeCanvas(cols * w, rows * w);
+    gameStarted = true;
+    gameOverState = false;
+  
+    // Start timer
+    startTime = millis();
+    timerRunning = true;
+  
+    if (buttonEasy) buttonEasy.remove();
+    if (buttonMedium) buttonMedium.remove();
+    if (buttonHard) buttonHard.remove();
+  
+    initGrid();
   }
-
-  resizeCanvas(cols * w, rows * w);
-  gameStarted = true;
-  gameOverState = false;
-
-  if (buttonEasy) buttonEasy.remove();
-  if (buttonMedium) buttonMedium.remove();
-  if (buttonHard) buttonHard.remove();
-
-  initGrid();
-}
+  
 
 function initGrid() {
   grid = make2DArray(cols, rows);
@@ -97,17 +113,37 @@ function initGrid() {
 }
 
 function draw() {
-  if (!gameStarted) {
-    return;
-  }
-
-  background(255);
-  for (let i = 0; i < cols; i++) {
-    for (let j = 0; j < rows; j++) {
-      grid[i][j].show();
+    if (!gameStarted) return;
+  
+    background(255);
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        grid[i][j].show();
+      }
+    }
+  
+    // Timer logic
+    if (timerRunning) {
+      elapsedTime = floor((millis() - startTime) / 1000);
+    }
+  
+    fill(255);
+    textSize(18);
+    textAlign(LEFT, BOTTOM);
+    text("⏱️ " + elapsedTime + "s", 10, height);
+     text("🚩 Flags Left: " + remainingFlags, 155, height);
+    
+    
+  
+    // Check win
+    if (!gameOverState && checkWin()) {
+      timerRunning = false;
+      revealMines();
+      gameOverState = true;
+      alert("🎉 You win!");
     }
   }
-}
+  
 
 function mousePressed() {
   if (!gameStarted || gameOverState) return;
@@ -124,6 +160,7 @@ function mousePressed() {
         if (cell.mine) {
           revealMines();
           gameOverState = true;
+          timerRunning = false;
           alert("💥 Game Over! You clicked on a mine.");
         }
       }
@@ -131,6 +168,19 @@ function mousePressed() {
   }
   return false;
 }
+
+function checkWin() {
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        let cell = grid[i][j];
+        if (!cell.mine && !cell.revealed) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  
 
 function revealMines() {
   for (let i = 0; i < cols; i++) {
@@ -276,8 +326,17 @@ class Cell {
   }
 
   toggleFlag() {
-    if (!this.revealed) {
-      this.flagged = !this.flagged;
+    if (this.revealed) return;
+  
+    if (this.flagged) {
+      this.flagged = false;
+      remainingFlags++;
+    } else if (remainingFlags > 0) {
+      this.flagged = true;
+      remainingFlags--;
     }
   }
+  
 }
+
+
